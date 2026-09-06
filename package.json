@@ -1,0 +1,68 @@
+{
+  "name": "@company/react-common-module",
+  "version": "0.1.0",
+  "description": "사내 공통 React 모듈 (antd, ag-grid, zustand, react-query)",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "publishConfig": {
+    "registry": "https://nexus.your-company.com/repository/npm-hosted/"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@ag-grid-community/locale": "^34.0.0"
+  },
+  "peerDependencies": {
+    "@ag-grid-community/locale": "^34.0.0",
+    "@hookform/resolvers": "^3.9.0 || ^5.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "ag-grid-community": "^34.0.0",
+    "ag-grid-react": "^34.0.0",
+    "antd": "^5.20.0",
+    "axios": "^1.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.53.0",
+    "zod": "^3.23.0 || ^4.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@hookform/resolvers": "^5.0.1",
+    "@tanstack/react-query": "^5.62.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "ag-grid-community": "^34.0.0",
+    "ag-grid-react": "^34.0.0",
+    "antd": "^5.22.0",
+    "axios": "^1.7.9",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.54.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.4.0",
+    "vitest": "^2.1.8",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2"
+  }
+}
