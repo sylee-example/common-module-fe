@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   AllCommunityModule,
   ModuleRegistry,
@@ -10,6 +10,7 @@ import {
 import { AG_GRID_LOCALE_KR } from '@ag-grid-community/locale';
 import { AgGridReact, type AgGridReactProps } from 'ag-grid-react';
 import { useGridStore } from '../../store/gridStore';
+import { handleEditNavigation } from './gridEditNavigation';
 
 // v33+ 는 모듈 등록이 필수. 모듈 로드 시 1회만 실행된다.
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -19,6 +20,11 @@ export interface CommonGridProps<TData> extends AgGridReactProps<TData> {
   columnDefs: ColDef<TData>[];
   /** 그리드 높이. number면 px */
   height?: number | string;
+  /**
+   * 컬럼 최소 너비(px). 컬럼이 적으면 flex로 화면을 꽉 채우고,
+   * 많으면 이 값까지만 줄어든 뒤 가로 스크롤이 생긴다.
+   */
+  columnMinWidth?: number;
   /** 지정하면 컬럼 너비/순서/정렬 상태를 zustand에 저장하고 복원 */
   stateKey?: string;
 }
@@ -28,7 +34,6 @@ const baseDefaultColDef = {
   sortable: true,
   resizable: true,
   filter: true,
-  minWidth: 100,
   flex: 1,
 };
 
@@ -36,9 +41,11 @@ export function CommonGrid<TData>({
   rowData,
   columnDefs,
   height = 480,
+  columnMinWidth = 100,
   stateKey,
   defaultColDef,
   onGridReady,
+  editType,
   pagination = true,
   paginationPageSize = 50,
   ...rest
@@ -48,8 +55,8 @@ export function CommonGrid<TData>({
   const setColumnState = useGridStore((s) => s.setColumnState);
 
   const mergedDefaultColDef = useMemo<ColDef<TData>>(
-    () => ({ ...baseDefaultColDef, ...defaultColDef }),
-    [defaultColDef],
+    () => ({ ...baseDefaultColDef, minWidth: columnMinWidth, ...defaultColDef }),
+    [columnMinWidth, defaultColDef],
   );
 
   const handleGridReady = useCallback(
@@ -65,19 +72,28 @@ export function CommonGrid<TData>({
     [onGridReady],
   );
 
+  // fullRow 편집일 때만 방향키를 가로챈다. 읽기 전용 그리드는 AG Grid 기본 동작 그대로다
+  const handleKeyDownCapture = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (apiRef.current) handleEditNavigation(apiRef.current, event.nativeEvent);
+  }, []);
+
   const persistColumnState = useCallback(() => {
     if (!stateKey || !apiRef.current) return;
     setColumnState(stateKey, apiRef.current.getColumnState());
   }, [stateKey, setColumnState]);
 
   return (
-    <div style={{ height, width: '100%' }}>
+    <div
+      style={{ height, width: '100%' }}
+      onKeyDownCapture={editType === 'fullRow' ? handleKeyDownCapture : undefined}
+    >
       <AgGridReact<TData>
         theme={themeQuartz}
         localeText={AG_GRID_LOCALE_KR}
         rowData={rowData}
         columnDefs={columnDefs}
         defaultColDef={mergedDefaultColDef}
+        editType={editType}
         pagination={pagination}
         paginationPageSize={paginationPageSize}
         animateRows

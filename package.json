@@ -4,7 +4,9 @@
   "description": "사내 공통 React 모듈 (antd, ag-grid, zustand, react-query)",
   "type": "module",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,6 +22,7 @@
   },
   "scripts": {
     "build": "tsc --noEmit && vite build",
+    "example": "vite --config example/vite.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"

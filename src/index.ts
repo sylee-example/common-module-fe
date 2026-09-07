@@ -2,6 +2,29 @@
 export { CommonGrid } from './components/grid/CommonGrid';
 export type { CommonGridProps } from './components/grid/CommonGrid';
 
+export {
+  resolveEditNavigation,
+  handleEditNavigation,
+  readCaret,
+  isDropdownOpen,
+} from './components/grid/gridEditNavigation';
+export type {
+  Caret,
+  EditNavAction,
+  EditNavContext,
+} from './components/grid/gridEditNavigation';
+
+export { SelectCellEditor } from './components/grid/editors/SelectCellEditor';
+export type {
+  SelectCellEditorParams,
+  SelectCellEditorProps,
+} from './components/grid/editors/SelectCellEditor';
+export { SearchCellEditor } from './components/grid/editors/SearchCellEditor';
+export type {
+  SearchCellEditorParams,
+  SearchCellEditorProps,
+} from './components/grid/editors/SearchCellEditor';
+
 export { CommonModal, confirmModal } from './components/modal/CommonModal';
 export type { CommonModalProps } from './components/modal/CommonModal';
 
