@@ -25,6 +25,30 @@ export type {
   SearchCellEditorProps,
 } from './components/grid/editors/SearchCellEditor';
 
+// 엑셀 내보내기
+export {
+  exportGridToExcel,
+  resolveExcelColumns,
+  getExportableColumns,
+  withExcelCellClass,
+  resolveExcelType,
+  excelStyleIdFor,
+  sanitizeExcelValue,
+  buildExcelFileName,
+  COMMON_EXCEL_STYLES,
+  EXCLUDED_EXCEL_COL_IDS,
+} from './lib/excelExport';
+export type {
+  ExcelValueType,
+  ExcelColDef,
+  ExcelColumnSpec,
+  ExportExcelOptions,
+  ResolvedExcelColumn,
+  ResolveExcelTypeInput,
+} from './lib/excelExport';
+
+export { internStrings } from './lib/internStrings';
+
 export { CommonModal, confirmModal } from './components/modal/CommonModal';
 export type { CommonModalProps } from './components/modal/CommonModal';
 

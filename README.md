@@ -317,10 +317,152 @@ CI에서 배포할 때는 토큰을 시크릿으로 주입하고 `.npmrc` 는 �
 - 그리드 컬럼 상태는 메모리에만 남는다. 새로고침 후 유지가 필요하면 `gridStore` 를 `zustand/middleware` 의 `persist` 로 감쌀 것.
 - AG Grid Enterprise 기능(그룹핑, 피벗)이 필요하면 `AllCommunityModule` 등록부에 엔터프라이즈 모듈과 라이선스 키를 추가.
 
+## 엑셀 내보내기
+
+AG Grid Enterprise 의 `ExcelExportModule` 등록이 필요하다 (선택적 peerDependency).
+
+```tsx
+import { ModuleRegistry } from 'ag-grid-community';
+import { AllEnterpriseModule } from 'ag-grid-enterprise';
+
+ModuleRegistry.registerModules([AllEnterpriseModule]);
+```
+
+`CommonGrid` 는 공통 스타일 팔레트를 자동 등록하고 컬럼마다 `excel-*` cellClass 를 붙인다
+(대응하는 CSS 가 없어 화면 표시에는 영향이 없다). 사용처는 내보내기만 호출하면 된다.
+
+```tsx
+import { CommonGrid, exportGridToExcel } from '@company/react-common-module';
+
+const apiRef = useRef<GridApi<Row> | null>(null);
+
+<CommonGrid<Row>
+  rowData={rows}
+  columnDefs={columnDefs}
+  onGridReady={(e) => { apiRef.current = e.api; }}
+/>
+
+<Button onClick={() => exportGridToExcel(apiRef.current!, { sheetName: '재고목록' })}>
+  엑셀 다운로드
+</Button>
+```
+
+기본 동작: 화면에 보이는 컬럼 순서 그대로, **체크박스·숨김 컬럼 제외**, 화면 필터·정렬 반영,
+헤더 고정, 수식 자동 변환 off.
+
+### 값 종류와 서식
+
+| 종류 | 정렬 | 서식 | 엑셀 셀 타입 |
+|---|---|---|---|
+| `string` | 왼쪽 | — | String |
+| `number` | 오른쪽 | `#,##0` | Number |
+| `decimal` | 오른쪽 | `#,##0.00` | Number |
+| `date` | 가운데 | `yyyy-mm-dd` | DateTime |
+| `datetime` | 가운데 | `yyyy-mm-dd hh:mm` | DateTime |
+
+종류는 `context.excelType` → `colDef.cellDataType` → 실제 값 추론 → `string` 순으로 정해진다.
+대부분 자동으로 맞으므로 틀릴 때만 지정한다.
+
+```tsx
+const columnDefs: ExcelColDef<Row>[] = [
+  { field: 'name', headerName: '거래처' },              // 자동: string
+  { field: 'qty', headerName: '수량' },                 // 자동: number
+  { field: 'price', headerName: '단가', context: { excelType: 'decimal' } },
+  { field: 'regDate', headerName: '등록일' },           // '2026-09-07' -> date
+];
+```
+
+설정을 `context` 안에 두는 이유: AG Grid 가 colDef 속성을 검증해 모르는 키에 경고를 낸다.
+(`invalid colDef property ... use the 'colDef.context' property instead`)
+
+숫자처럼 생긴 문자열(`'00123'`, `'010-1234-5678'`)은 **문자열로 유지**한다. 앞자리 0 이 사라지면 안 되기 때문.
+
+### 컬럼 목록 지정
+
+```tsx
+// 문자열만
+exportGridToExcel(api, { columns: ['name', 'qty'] });
+
+// 스펙 혼용 (헤더명·타입·너비 재정의)
+exportGridToExcel(api, {
+  columns: ['name', { colId: 'qty', header: '출고수량', width: 120 }],
+  rows: 'all',            // 기본 'filteredAndSorted'
+  onlySelected: true,
+});
+```
+
+화면에 없는 컬럼(숨김·오타)은 조용히 건너뛴다.
+
+### 팔레트 밖 서식
+
+`excelStyles` 는 그리드 생성 시점에만 적용되므로(`@initial`) 런타임에 서식을 만들 수 없다.
+직접 등록한 뒤 `styleId` 로 지목한다.
+
+```tsx
+<CommonGrid excelStyles={[{ id: 'excel-won', alignment: { horizontal: 'Right' },
+  dataType: 'Number', numberFormat: { format: '₩#,##0' } }]} ... />
+
+exportGridToExcel(api, { columns: [{ colId: 'amount', styleId: 'excel-won' }] });
+```
+
+### 보안 — 수식 인젝션
+
+`=`, `+`, `-`, `@`, 탭, 개행으로 시작하는 **문자열** 셀에 홑따옴표를 붙여 텍스트로 고정한다.
+`=cmd|...` 같은 값이 파일을 여는 사람 PC 에서 실행되는 것을 막는다. 숫자·날짜는 손대지 않는다
+(건드리면 셀 서식이 문자열로 깨진다).
+
+`autoConvertFormulas` 는 항상 `false` 로 넘긴다. **켜지 말 것.**
+
+## internStrings
+
+`JSON.parse` 는 같은 값이 반복돼도 매번 새 문자열 객체를 만들고 V8 이 중복을 제거하지 않는다.
+상태·부서·코드처럼 값 종류가 적은 컬럼이 많을수록 효과가 크다.
+
+```tsx
+import { internStrings } from '@company/react-common-module';
+
+const rows = internStrings(res.data.data);   // 그리드에 넣기 전에 한 번
+```
+
+실측 (80,000행 x 30컬럼): **209MB → 54MB**, 162ms 소요.
+
+행 객체를 제자리에서 고치고 같은 배열을 돌려준다. 중첩 객체는 건드리지 않는다.
+
+> 대용량 그리드에서 한글 정렬에 `localeCompare(v, 'ko', {...})` 를 쓰지 말 것.
+> 80,000행 정렬에 **1,980ms** 가 걸린다 (매 비교마다 Collator 를 새로 만든다).
+> 로케일 정렬이 꼭 필요하면 `Intl.Collator` 를 모듈 레벨에 한 번 만들어 재사용한다 (134ms).
+> AG Grid 기본 비교자는 34ms 이고, 한글은 코드포인트 순서가 이미 가나다순이라 대개 이걸로 충분하다.
+
 ## 예제 실행
 
 ```bash
 npm run example   # http://localhost:5173
 ```
 
-`example/main.tsx` 에 fullRow 편집, SelectCellEditor, SearchCellEditor, 컬럼 너비 동작이 모두 들어 있다.
+| 탭 | 내용 |
+|---|---|
+| fullRow 편집 + 엑셀 | 방향키 네비게이션, SelectCellEditor, SearchCellEditor, 엑셀 다운로드 4종, 컬럼 너비 |
+| 80k 성능 테스트 | 행 수·인터닝을 바꿔 가며 생성/로드/정렬/엑셀 시간과 힙을 측정 |
+
+엑셀은 Enterprise 모듈이 필요하다. 예제는 `ExcelExportModule` 만 등록하며, 라이선스 키가 없으면
+trial 로 동작한다 (콘솔 경고 + 워터마크).
+
+### 80,000행 x 30컬럼 실측 (Chrome, M4 Pro)
+
+| 작업 | 시간 | 힙 |
+|---|---|---|
+| 데이터 생성 | 223 ms | 81 MB |
+| `internStrings` | 123 ms | 93 MB |
+| 그리드 로드 | 2,696 ms | 95 MB |
+| 정렬 (숫자 컬럼) | 48 ms | 89 MB |
+| 정렬 (문자열 컬럼) | 193 ms | 152 MB |
+| 엑셀 다운로드 (5컬럼) | 1,451 ms | 322 MB |
+| **엑셀 다운로드 (30컬럼)** | **8,496 ms** | **1,294 MB** |
+
+> **80,000행 전체 컬럼 엑셀은 브라우저에서 8.5초간 완전히 멈추고 힙이 1.3GB 까지 치솟는다.**
+> 전부 동기 작업이라 같은 탭에서 도는 다른 마이크로 프론트엔드도 함께 멈춘다.
+> 내보내는 컬럼을 줄이면 거의 선형으로 줄어든다 (30컬럼 8.5초 -> 5컬럼 1.5초).
+>
+> 대응 순서: ① `columns` 로 꼭 필요한 컬럼만, ② `rows: 'filteredAndSorted'` 로 행 줄이기,
+> ③ 그래도 부족하면 서버 생성. `ExportExcelOptions` 형태를 그대로 서버에 넘기면 되므로
+> 사용처 코드는 바뀌지 않는다.

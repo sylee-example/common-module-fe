@@ -11,6 +11,7 @@ const external = [
   'antd',
   '@ant-design/icons',
   'ag-grid-community',
+  'ag-grid-enterprise',
   'ag-grid-react',
   '@ag-grid-community/locale',
   '@tanstack/react-query',
